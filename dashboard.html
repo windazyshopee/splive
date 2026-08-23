@@ -45,19 +45,16 @@
   .meta b{color:var(--amber); font-weight:600;}
   table{width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden;}
   thead th{
-    text-align:right; font-size:11px; text-transform:uppercase; letter-spacing:0.06em;
+    text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.06em;
     color:var(--dim); padding:10px 14px; border-bottom:1px solid var(--line); font-weight:600;
   }
-  thead th:nth-child(4), thead th:nth-child(1){text-align:right;}
-  thead th:nth-child(3){text-align:left;}
-  thead th:nth-child(5){text-align:center;}
-  thead th:nth-child(6){text-align:left;}
-  thead th:nth-child(7){text-align:center;}
+  th.num, .num{text-align:right;}
+  th.center-col, .center-col{text-align:center;}
+  th.link-col, .link-col{text-align:center;}
   tbody td{padding:10px 14px; border-bottom:1px solid var(--line); font-family:var(--mono); font-size:13px;}
   tbody tr:last-child td{border-bottom:none;}
   tbody tr:hover{background:rgba(255,255,255,0.02);}
-  td.num{text-align:right;}
-  td.rank{text-align:right; color:var(--dim);}
+  .rank{text-align:right; color:var(--dim);}
   .rate{color:var(--amber); font-weight:700;}
   td.user{font-family:var(--sans); font-size:13px;}
   .link-btn{
@@ -65,10 +62,36 @@
     padding:4px 10px; font-size:11px; font-family:var(--sans); text-decoration:none;
   }
   .link-btn:hover{border-color:#5fb4ff;}
+  .qr-btn{
+    display:inline-block; background:#232427; color:#5fb4ff; border:1px solid #3a3b3e; border-radius:6px;
+    padding:4px 10px; font-size:11px; font-family:var(--sans); cursor:pointer;
+  }
+  .qr-btn:hover{border-color:#5fb4ff;}
   .empty{padding:60px 20px; text-align:center; color:var(--dim); font-family:var(--mono); font-size:13px;}
   footer{padding:16px 28px 40px; font-size:11px; color:#5a5c60; font-family:var(--mono);}
 
-  /* ---------- Mobile: table becomes a stack of cards ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.65); display:none;
+    align-items:center; justify-content:center; z-index:50;
+  }
+  .overlay.show{display:flex;}
+  .qr-box{background:#1a1a1a; border:1px solid #444; border-radius:10px; padding:16px; text-align:center;}
+  .qr-box img{display:block; margin:0 auto 10px; border-radius:6px; background:#fff;}
+  .qr-box .url{color:#ccc; font:11px/1.4 var(--sans); word-break:break-all; max-width:240px; margin:0 auto 12px;}
+  .qr-box button{background:var(--orange); color:#fff; border:none; border-radius:6px; padding:6px 18px; cursor:pointer; font-size:12px;}
+
+  .table-scroll{
+    overflow-x:auto; -webkit-overflow-scrolling:touch;
+    border:1px solid var(--line); border-radius:10px; background:var(--panel);
+  }
+  .table-scroll table{border:none; border-radius:0; background:none;}
+
+  /* Keep rank visible as an anchor while scrolling horizontally on narrow screens */
+  th.rank, td.rank{ position:sticky; left:0; background:var(--panel); z-index:1; }
+  thead tr{ background:var(--panel); }
+  tbody tr:hover td.rank{ background:#1c1d1f; }
+
+  /* ---------- Mobile: same table, just tighter — no wrapping, no tall cards ---------- */
   @media (max-width: 720px) {
     header{ padding:16px 16px; flex-wrap:wrap; gap:8px; }
     .brand{ flex-wrap:wrap; gap:6px; }
@@ -77,23 +100,11 @@
     main{ padding:14px 14px 40px; }
     .meta{ flex-wrap:wrap; row-gap:6px; column-gap:16px; font-size:11px; margin-bottom:14px; }
 
-    table{ background:none; border:none; border-radius:0; }
-    thead{ display:none; }
-    tbody{ display:flex; flex-direction:column; gap:10px; }
-    tr{
-      display:block; background:var(--panel); border:1px solid var(--line);
-      border-radius:10px; padding:2px 14px;
-    }
-    td{
-      display:flex; justify-content:space-between; align-items:center; gap:12px;
-      padding:9px 0; border-bottom:1px solid var(--line); font-size:13px; text-align:right;
-    }
-    td:last-child{ border-bottom:none; }
-    td::before{
-      content:attr(data-label); color:var(--dim); font-size:10px; text-transform:uppercase;
-      letter-spacing:0.05em; font-family:var(--sans); font-weight:600; text-align:left;
-    }
-    td.rank{ display:none; }
+    table{ min-width:600px; } /* forces horizontal scroll instead of squishing/wrapping */
+    thead th{ padding:8px 10px; font-size:10px; white-space:nowrap; }
+    tbody td{ padding:8px 10px; font-size:12px; white-space:nowrap; }
+    .link-btn{ padding:3px 8px; }
+    .qr-col{ display:none; } /* QR only makes sense on non-mobile — link column covers mobile */
     .empty{ padding:40px 16px; }
     footer{ padding:14px 16px 30px; }
   }
@@ -116,25 +127,36 @@
     <div>refreshed <b id="metaClock">—</b></div>
   </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Coins/Min</th>
-        <th>Coins</th>
-        <th>Claims</th>
-        <th>Username</th>
-        <th>Seen</th>
-        <th>Last Caught</th>
-        <th>URL</th>
-      </tr>
-    </thead>
-    <tbody id="tbody"></tbody>
-  </table>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="rank">#</th>
+          <th class="link-col">URL</th>
+          <th class="num">Coins/Min</th>
+          <th class="num">Coins</th>
+          <th class="num">Claims</th>
+          <th>Username</th>
+          <th class="center-col">Seen</th>
+          <th>Last Caught</th>
+          <th class="qr-col center-col">QR</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
   <div class="empty" id="emptyState" style="display:none;">Chưa có dữ liệu — mở live.shopee.vn với userscript đang chạy.</div>
 </main>
 
 <footer>synced from Firebase Realtime Database</footer>
+
+<div class="overlay" id="qrOverlay">
+  <div class="qr-box">
+    <img id="qrImg" width="240" height="240" alt="QR code">
+    <div class="url" id="qrUrl"></div>
+    <button id="qrClose">Close</button>
+  </div>
+</div>
 
 <script>
   // ============================================================
@@ -204,14 +226,15 @@
       const perMinStr = r.coinsPerMinute != null ? Number(r.coinsPerMinute).toFixed(2) : '—';
       return `
         <tr>
-          <td class="rank" data-label="#">${i + 1}</td>
-          <td class="num rate" data-label="Coins/Min">${esc(perMinStr)}</td>
-          <td class="num" data-label="Coins">${esc(r.coins_per_claim ?? '—')}</td>
-          <td class="num" data-label="Claims">${esc(r.claims_per_session_per_viewer ?? '—')}</td>
-          <td class="user" data-label="Username">${esc(r.username ?? '—')}</td>
-          <td style="text-align:center;" data-label="Seen">${esc(r.seenCount ?? '—')}</td>
-          <td data-label="Last Caught">${esc(timeStr)}</td>
-          <td style="text-align:center;" data-label="URL">${r.share_url ? `<a class="link-btn" href="${esc(r.share_url)}" target="_blank" rel="noopener noreferrer">Mở</a>` : '—'}</td>
+          <td class="rank">${i + 1}</td>
+          <td class="link-col">${r.share_url ? `<a class="link-btn" href="${esc(r.share_url)}" target="_blank" rel="noopener noreferrer">Mở</a>` : '—'}</td>
+          <td class="num rate">${esc(perMinStr)}</td>
+          <td class="num">${esc(r.coins_per_claim ?? '—')}</td>
+          <td class="num">${esc(r.claims_per_session_per_viewer ?? '—')}</td>
+          <td class="user">${esc(r.username ?? '—')}</td>
+          <td class="center-col">${esc(r.seenCount ?? '—')}</td>
+          <td>${esc(timeStr)}</td>
+          <td class="qr-col center-col">${r.share_url ? `<button class="qr-btn" data-qr-url="${esc(r.share_url)}">QR</button>` : '—'}</td>
         </tr>
       `;
     }).join('');
@@ -219,6 +242,23 @@
 
   // Re-render every 5s even without new pushes, so expired rows drop off.
   setInterval(render, 5000);
+
+  // ---------- QR modal (desktop only column, but harmless if triggered anywhere) ----------
+  const overlay = document.getElementById('qrOverlay');
+  const qrImg = document.getElementById('qrImg');
+  const qrUrl = document.getElementById('qrUrl');
+  document.getElementById('qrClose').addEventListener('click', () => overlay.classList.remove('show'));
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('show'); });
+
+  tbody.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-qr-url]');
+    if (!btn) return;
+    const url = btn.getAttribute('data-qr-url');
+    if (!url) return;
+    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(url)}`;
+    qrUrl.textContent = url;
+    overlay.classList.add('show');
+  });
 </script>
 </body>
 </html>
