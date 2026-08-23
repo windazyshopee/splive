@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coins/Min — Live Board</title>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<style>
+  :root{
+    --bg:#111213;
+    --panel:#17181a;
+    --line:#26282b;
+    --orange:#ee4d2d;
+    --amber:#ffce54;
+    --text:#f2f2f0;
+    --dim:#8a8d91;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:var(--sans);
+    min-height:100vh;
+  }
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:22px 28px; border-bottom:1px solid var(--line);
+    position:sticky; top:0; background:var(--bg); z-index:5;
+  }
+  .brand{display:flex; align-items:baseline; gap:10px;}
+  .brand h1{font-size:18px; margin:0; letter-spacing:0.02em; font-weight:700;}
+  .brand .accent{color:var(--orange);}
+  .status{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--dim); font-family:var(--mono);}
+  .dot{width:7px; height:7px; border-radius:50%; background:#3ecb6f; box-shadow:0 0 0 0 rgba(62,203,111,.6); animation:pulse 1.8s infinite;}
+  .dot.off{background:#666; animation:none;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(62,203,111,.55);}
+    70%{box-shadow:0 0 0 7px rgba(62,203,111,0);}
+    100%{box-shadow:0 0 0 0 rgba(62,203,111,0);}
+  }
+  main{padding:20px 28px 60px;}
+  .meta{display:flex; gap:22px; margin-bottom:16px; font-size:12px; color:var(--dim); font-family:var(--mono);}
+  .meta b{color:var(--amber); font-weight:600;}
+  table{width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden;}
+  thead th{
+    text-align:right; font-size:11px; text-transform:uppercase; letter-spacing:0.06em;
+    color:var(--dim); padding:10px 14px; border-bottom:1px solid var(--line); font-weight:600;
+  }
+  thead th:nth-child(4), thead th:nth-child(1){text-align:right;}
+  thead th:nth-child(3){text-align:left;}
+  thead th:nth-child(5){text-align:center;}
+  thead th:nth-child(6){text-align:left;}
+  thead th:nth-child(7){text-align:center;}
+  tbody td{padding:10px 14px; border-bottom:1px solid var(--line); font-family:var(--mono); font-size:13px;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:rgba(255,255,255,0.02);}
+  td.num{text-align:right;}
+  td.rank{text-align:right; color:var(--dim);}
+  .rate{color:var(--amber); font-weight:700;}
+  td.user{font-family:var(--sans); font-size:13px;}
+  .link-btn{
+    display:inline-block; background:#232427; color:#5fb4ff; border:1px solid #3a3b3e; border-radius:6px;
+    padding:4px 10px; font-size:11px; font-family:var(--sans); text-decoration:none;
+  }
+  .link-btn:hover{border-color:#5fb4ff;}
+  .empty{padding:60px 20px; text-align:center; color:var(--dim); font-family:var(--mono); font-size:13px;}
+  footer{padding:16px 28px 40px; font-size:11px; color:#5a5c60; font-family:var(--mono);}
+
+  /* ---------- Mobile: table becomes a stack of cards ---------- */
+  @media (max-width: 720px) {
+    header{ padding:16px 16px; flex-wrap:wrap; gap:8px; }
+    .brand{ flex-wrap:wrap; gap:6px; }
+    .brand h1{ font-size:16px; }
+    .status{ font-size:11px; }
+    main{ padding:14px 14px 40px; }
+    .meta{ flex-wrap:wrap; row-gap:6px; column-gap:16px; font-size:11px; margin-bottom:14px; }
+
+    table{ background:none; border:none; border-radius:0; }
+    thead{ display:none; }
+    tbody{ display:flex; flex-direction:column; gap:10px; }
+    tr{
+      display:block; background:var(--panel); border:1px solid var(--line);
+      border-radius:10px; padding:2px 14px;
+    }
+    td{
+      display:flex; justify-content:space-between; align-items:center; gap:12px;
+      padding:9px 0; border-bottom:1px solid var(--line); font-size:13px; text-align:right;
+    }
+    td:last-child{ border-bottom:none; }
+    td::before{
+      content:attr(data-label); color:var(--dim); font-size:10px; text-transform:uppercase;
+      letter-spacing:0.05em; font-family:var(--sans); font-weight:600; text-align:left;
+    }
+    td.rank{ display:none; }
+    .empty{ padding:40px 16px; }
+    footer{ padding:14px 16px 30px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>coins<span class="accent">/</span>min</h1>
+    <h1 style="font-weight:400; color:var(--dim); font-size:14px;">live board</h1>
+  </div>
+  <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">connecting…</span></div>
+</header>
+
+<main>
+  <div class="meta">
+    <div>tracking <b id="metaCount">0</b> item(s)</div>
+    <div>window <b>5 min</b></div>
+    <div>refreshed <b id="metaClock">—</b></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Coins/Min</th>
+        <th>Coins</th>
+        <th>Claims</th>
+        <th>Username</th>
+        <th>Seen</th>
+        <th>Last Caught</th>
+        <th>URL</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div class="empty" id="emptyState" style="display:none;">Chưa có dữ liệu — mở live.shopee.vn với userscript đang chạy.</div>
+</main>
+
+<footer>synced from Firebase Realtime Database</footer>
+
+<script>
+  // ============================================================
+  // FIREBASE CONFIG — lấy từ Firebase Console > Project settings
+  // (đây là config public phía client, không phải secret — an toàn
+  // để đưa vào file tĩnh, bảo mật thật sự nằm ở Realtime Database Rules)
+  // ============================================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyBLWbg-g7VZMvDx4x-fyQGYcbVql5bCLQg",
+    databaseURL: "https://shopee-live-36e26-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "shopee-live-36e26"
+  };
+
+  const MAX_AGE_MS = 5 * 60 * 1000;
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const itemsRef = db.ref('items');
+
+  const tbody = document.getElementById('tbody');
+  const emptyState = document.getElementById('emptyState');
+  const metaCount = document.getElementById('metaCount');
+  const metaClock = document.getElementById('metaClock');
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+
+  let itemsCache = {};
+
+  function esc(str) {
+    return String(str).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  itemsRef.on('value', snap => {
+    itemsCache = snap.val() || {};
+    statusDot.classList.remove('off');
+    statusText.textContent = 'live';
+    render();
+  });
+
+  db.ref('.info/connected').on('value', snap => {
+    if (snap.val() === false) {
+      statusDot.classList.add('off');
+      statusText.textContent = 'reconnecting…';
+    }
+  });
+
+  function render() {
+    const now = Date.now();
+    const rows = Object.entries(itemsCache)
+      .map(([key, v]) => ({ key, ...v }))
+      .filter(v => typeof v.lastCaught === 'number' && now - v.lastCaught <= MAX_AGE_MS)
+      .sort((a, b) => {
+        const pa = a.coinsPerMinute ?? -Infinity;
+        const pb = b.coinsPerMinute ?? -Infinity;
+        if (pb !== pa) return pb - pa;
+        return b.lastCaught - a.lastCaught;
+      });
+
+    metaCount.textContent = rows.length;
+    metaClock.textContent = new Date(now).toLocaleTimeString();
+    emptyState.style.display = rows.length ? 'none' : 'block';
+
+    tbody.innerHTML = rows.map((r, i) => {
+      const timeStr = new Date(r.lastCaught).toLocaleTimeString();
+      const perMinStr = r.coinsPerMinute != null ? Number(r.coinsPerMinute).toFixed(2) : '—';
+      return `
+        <tr>
+          <td class="rank" data-label="#">${i + 1}</td>
+          <td class="num rate" data-label="Coins/Min">${esc(perMinStr)}</td>
+          <td class="num" data-label="Coins">${esc(r.coins_per_claim ?? '—')}</td>
+          <td class="num" data-label="Claims">${esc(r.claims_per_session_per_viewer ?? '—')}</td>
+          <td class="user" data-label="Username">${esc(r.username ?? '—')}</td>
+          <td style="text-align:center;" data-label="Seen">${esc(r.seenCount ?? '—')}</td>
+          <td data-label="Last Caught">${esc(timeStr)}</td>
+          <td style="text-align:center;" data-label="URL">${r.share_url ? `<a class="link-btn" href="${esc(r.share_url)}" target="_blank" rel="noopener noreferrer">Mở</a>` : '—'}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // Re-render every 5s even without new pushes, so expired rows drop off.
+  setInterval(render, 5000);
+</script>
+</body>
+</html>
