@@ -175,6 +175,14 @@
   const db = firebase.database();
   const itemsRef = db.ref('items');
 
+  // Bound the initial + ongoing payload to roughly the current window.
+  // NOTE: this cutoff is fixed at page-load time — Firebase queries can't
+  // dynamically re-evaluate against "now", so this only protects against
+  // downloading a large backlog (e.g. if the cleanup script's tab hasn't
+  // been open for a while). The actual moving 5-minute window is still
+  // enforced client-side in render(), same as before.
+  const itemsQuery = itemsRef.orderByChild('lastCaught').startAt(Date.now() - MAX_AGE_MS);
+
   const tbody = document.getElementById('tbody');
   const emptyState = document.getElementById('emptyState');
   const metaCount = document.getElementById('metaCount');
@@ -182,6 +190,8 @@
   const statusDot = document.getElementById('statusDot');
   const statusText = document.getElementById('statusText');
 
+  // Maintained incrementally via child events below, not replaced wholesale
+  // on every change — each update only transfers the one row that changed.
   let itemsCache = {};
 
   function esc(str) {
@@ -190,15 +200,24 @@
     }[c]));
   }
 
-  itemsRef.on('value', snap => {
-    itemsCache = snap.val() || {};
-    statusDot.classList.remove('off');
-    statusText.textContent = 'live';
+  itemsQuery.on('child_added', snap => {
+    itemsCache[snap.key] = snap.val();
+    render();
+  });
+  itemsQuery.on('child_changed', snap => {
+    itemsCache[snap.key] = snap.val();
+    render();
+  });
+  itemsQuery.on('child_removed', snap => {
+    delete itemsCache[snap.key];
     render();
   });
 
   db.ref('.info/connected').on('value', snap => {
-    if (snap.val() === false) {
+    if (snap.val() === true) {
+      statusDot.classList.remove('off');
+      statusText.textContent = 'live';
+    } else {
       statusDot.classList.add('off');
       statusText.textContent = 'reconnecting…';
     }
