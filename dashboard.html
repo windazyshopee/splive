@@ -137,7 +137,6 @@
           <th class="num">Coins</th>
           <th class="num">Claims</th>
           <th>Username</th>
-          <th class="center-col">Seen</th>
           <th>Last Caught</th>
           <th class="qr-col center-col">QR</th>
         </tr>
@@ -232,7 +231,6 @@
           <td class="num">${esc(r.coins_per_claim ?? '—')}</td>
           <td class="num">${esc(r.claims_per_session_per_viewer ?? '—')}</td>
           <td class="user">${esc(r.username ?? '—')}</td>
-          <td class="center-col">${esc(r.seenCount ?? '—')}</td>
           <td>${esc(timeStr)}</td>
           <td class="qr-col center-col">${r.share_url ? `<button class="qr-btn" data-qr-url="${esc(r.share_url)}">QR</button>` : '—'}</td>
         </tr>
