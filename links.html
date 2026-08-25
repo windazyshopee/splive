@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shopping list</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EEF0E9;
+    --surface:#FFFFFF;
+    --ink:#17181A;
+    --muted:#6B7280;
+    --border:#DCDFD3;
+    --accent:#D6472A;
+    --accent-ink:#FFFFFF;
+    --stamp:#2B4570;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:880px;margin:0 auto;padding:32px 20px 80px;}
+
+  .topbar{display:flex;align-items:center;gap:16px;margin-bottom:28px;}
+  .brand-mark{font-size:38px;line-height:1;}
+  h1{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:26px;
+    font-weight:700;
+    margin:0 0 2px;
+    letter-spacing:-0.01em;
+  }
+  .subtitle{margin:0;color:var(--muted);font-size:14px;}
+
+  .add-bar{
+    display:flex;
+    gap:10px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:10px;
+    box-shadow:0 1px 2px rgba(0,0,0,0.03);
+  }
+  #urlInput{
+    flex:1;
+    border:none;
+    outline:none;
+    font-family:'Inter',sans-serif;
+    font-size:16px;
+    padding:8px 10px;
+    background:transparent;
+    color:var(--ink);
+    min-width:0;
+  }
+  #urlInput::placeholder{color:#9CA0A6;}
+  #addBtn{
+    background:var(--accent);
+    color:var(--accent-ink);
+    border:none;
+    border-radius:6px;
+    padding:10px 18px;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:14px;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:filter .15s ease;
+  }
+  #addBtn:hover{filter:brightness(1.08);}
+  #addBtn:disabled{opacity:.6;cursor:progress;}
+
+  .status{min-height:20px;margin:10px 2px 0;font-size:13px;color:var(--muted);}
+  .status.error{color:var(--accent);}
+
+  /* Fixed layout keeps the columns at their declared widths instead of
+     letting a long title stretch the table past the viewport. */
+  table.manifest{width:100%;table-layout:fixed;border-collapse:collapse;margin-top:22px;}
+  table.manifest.hidden{display:none;}
+  .manifest thead th{
+    text-align:left;
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--muted);
+    font-weight:600;
+    padding:0 10px 10px;
+    border-bottom:1px solid var(--border);
+  }
+  .manifest tbody tr{
+    border-bottom:1px dashed var(--border);
+  }
+  .manifest tbody tr:hover{background:rgba(0,0,0,0.02);}
+  .manifest td{padding:14px 10px;vertical-align:middle;}
+
+  .col-no{width:48px;}
+  /* Trailing edge, vertically centred on the row. */
+  .col-drag{width:52px;}
+  .sr-only{
+    position:absolute;width:1px;height:1px;
+    padding:0;margin:-1px;overflow:hidden;
+    clip:rect(0 0 0 0);white-space:nowrap;border:0;
+  }
+  .no-badge{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:28px;height:28px;border-radius:50%;
+    border:1.5px solid var(--stamp);
+    color:var(--stamp);
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;font-weight:500;
+  }
+
+  .col-title{min-width:0;}
+  .col-title a{
+    color:var(--ink);
+    font-weight:600;
+    text-decoration:none;
+    overflow-wrap:anywhere;
+  }
+  .col-title a:hover{color:var(--accent);}
+  .title-row{display:flex;align-items:center;gap:12px;min-width:0;}
+  /* Keeps the link inline rather than stretched across the flex item. */
+  .title-text{min-width:0;}
+  .thumb{
+    width:44px;height:44px;flex:0 0 44px;
+    border-radius:6px;
+    border:1px solid var(--border);
+    background:#F4F5F0;
+    object-fit:cover;
+    display:block;
+  }
+  .thumb.empty{
+    display:flex;align-items:center;justify-content:center;
+    font-size:17px;
+    filter:grayscale(1);
+    opacity:.45;
+  }
+
+  .col-qr{width:70px;}
+  .qr-btn{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;font-weight:600;letter-spacing:.03em;
+    background:transparent;
+    border:1.5px solid var(--stamp);
+    color:var(--stamp);
+    border-radius:6px;
+    padding:6px 10px;
+    cursor:pointer;
+  }
+  .qr-btn:hover{background:var(--stamp);color:#fff;}
+
+  .col-actions{width:110px;white-space:nowrap;}
+  .icon-btn{
+    width:30px;height:30px;
+    border:1px solid var(--border);
+    background:var(--surface);
+    border-radius:6px;
+    color:var(--ink);
+    font-size:14px;
+    cursor:pointer;
+    margin-right:4px;
+  }
+  .icon-btn:last-child{margin-right:0;}
+  .icon-btn svg{
+    width:17px;height:17px;
+    display:block;margin:0 auto;
+    fill:none;
+    stroke:currentColor;
+    stroke-width:1.7;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+  }
+  .icon-btn svg circle{fill:currentColor;stroke:none;}
+  .icon-btn:hover{border-color:var(--ink);}
+  .icon-btn:disabled{opacity:.3;cursor:default;}
+  .icon-btn.danger:hover{border-color:var(--accent);color:var(--accent);}
+
+  /* Quieter than the action buttons — bare icon until you reach for it. */
+  .drag-handle{
+    border-color:transparent;
+    background:transparent;
+    cursor:grab;
+    touch-action:none;          /* the handle drags; it never scrolls the page */
+    -webkit-touch-callout:none;
+    user-select:none;
+    -webkit-user-select:none;
+    color:var(--muted);
+  }
+  .drag-handle:hover{
+    border-color:var(--border);
+    background:var(--surface);
+    color:var(--ink);
+  }
+  .drag-handle:active{cursor:grabbing;}
+  /* The row left behind marks the drop slot; the floating copy (.drag-ghost)
+     follows the pointer so the drag never looks frozen between swaps. */
+  .manifest tbody tr.placeholder > td{visibility:hidden;}
+  .manifest tbody tr.placeholder{
+    background:rgba(43,69,112,0.06);
+    outline:2px dashed rgba(43,69,112,0.35);
+    outline-offset:-3px;
+    border-radius:var(--radius);
+  }
+  .drag-ghost{
+    position:fixed;
+    margin:0;
+    z-index:60;
+    pointer-events:none;
+    background:var(--surface);
+    border-radius:var(--radius);
+    box-shadow:0 14px 32px rgba(0,0,0,0.22);
+  }
+  .drag-ghost tbody tr{border-bottom:none;}
+  body.dragging{
+    user-select:none;
+    -webkit-user-select:none;
+    cursor:grabbing;
+  }
+
+  .empty-state{
+    text-align:center;
+    color:var(--muted);
+    font-size:14px;
+    padding:48px 20px;
+    border:1px dashed var(--border);
+    border-radius:var(--radius);
+    margin-top:22px;
+  }
+  .empty-state.hidden{display:none;}
+
+  /* QR overlay — hanging shipping-tag signature element */
+  .qr-overlay{
+    position:fixed;inset:0;
+    background:rgba(15,16,18,0.6);
+    display:flex;align-items:center;justify-content:center;
+    padding:20px;
+    overflow-y:auto;
+    z-index:50;
+  }
+  .qr-overlay.hidden{display:none;}
+  .qr-tag{
+    position:relative;
+    background:var(--surface);
+    border-radius:6px 6px 16px 16px;
+    padding:26px;
+    width:min(260px,84vw);
+    text-align:center;
+    box-shadow:0 24px 48px rgba(0,0,0,0.3);
+  }
+  .qr-tag img{width:100%;max-width:200px;height:auto;border-radius:4px;}
+  .qr-label{
+    margin:14px 0 0;
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    color:var(--muted);
+    word-break:break-word;
+  }
+
+  body.modal-open{overflow:hidden;}
+
+  a:focus-visible, button:focus-visible, input:focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:2px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;}
+  }
+
+  /* Responsive card layout for narrow screens (the table needs ~700px
+     once the buttons grow to touch size) */
+  @media (max-width:700px){
+    .manifest thead{display:none;}
+    .manifest, .manifest tbody{display:block;width:100%;}
+
+    /* Each row becomes a card: title on top, controls on the line below. */
+    .manifest tr{
+      display:grid;
+      grid-template-columns:auto minmax(0,1fr) auto;
+      align-items:center;
+      column-gap:12px;
+      row-gap:8px;
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      margin-bottom:12px;
+      padding:12px;
+      background:var(--surface);
+    }
+    .manifest td{display:block;width:auto;padding:0;border:none;}
+    /* Number top-left, title beside it, grab handle centred on the right
+       edge where a thumb reaches it. */
+    .manifest td.col-no{grid-column:1;grid-row:1;}
+    .manifest td.col-title{grid-column:2;grid-row:1;min-width:0;}
+    .manifest td.col-drag{
+      grid-column:3;
+      grid-row:1 / span 2;
+      align-self:center;
+      display:flex;
+      align-items:center;
+    }
+    /* Long-press starts a drag, so suppress iOS's own press behaviours. */
+    .manifest tbody tr{
+      -webkit-touch-callout:none;
+      -webkit-user-select:none;
+      user-select:none;
+    }
+
+    /* A QR you'd scan with the phone you're already holding is no use */
+    .manifest td.col-qr{display:none;}
+
+    /* Room for a proper product picture — it's the fastest way to recognise
+       a link on a phone. */
+    .thumb{width:64px;height:64px;flex-basis:64px;border-radius:8px;}
+    .thumb.empty{font-size:24px;}
+    @media (max-width:360px){
+      .thumb{width:52px;height:52px;flex-basis:52px;}
+      .thumb.empty{font-size:20px;}
+    }
+
+    /* Two lines of title, then ellipsis — cards stay a predictable height. */
+    .title-text{
+      display:-webkit-box;
+      -webkit-box-orient:vertical;
+      -webkit-line-clamp:2;
+      line-clamp:2;
+      overflow:hidden;
+    }
+
+    .manifest td.col-actions{
+      grid-column:1 / 3;
+      grid-row:2;
+      display:flex;
+      justify-content:flex-end;
+      flex-wrap:wrap;
+      gap:8px;
+    }
+    .icon-btn{margin-right:0;}
+
+    .wrap{padding:24px 14px 64px;}
+    .topbar{gap:12px;margin-bottom:20px;}
+    .brand-mark{font-size:30px;}
+    h1{font-size:21px;}
+    .subtitle{font-size:13px;}
+  }
+
+  /* Comfortable touch targets on any touch device, tablets included */
+  @media (pointer:coarse){
+    .icon-btn{width:40px;height:40px;font-size:16px;}
+    .qr-btn{padding:11px 16px;font-size:12px;}
+    #addBtn{padding:13px 18px;}
+    .icon-btn svg{width:20px;height:20px;}
+    .col-drag{width:64px;}
+    .col-no{width:52px;}
+    .col-qr{width:82px;}
+    .col-actions{width:130px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="topbar">
+    <span class="brand-mark">📦</span>
+    <div>
+      <h1>Shopping list</h1>
+      <p class="subtitle">Track, reorder, and share your Shopee product links</p>
+    </div>
+  </header>
+
+  <section class="add-bar">
+    <input type="url" id="urlInput" placeholder="Paste a Shopee link…" autocomplete="off">
+    <button id="addBtn">Add link</button>
+  </section>
+  <p id="statusMsg" class="status" aria-live="polite"></p>
+
+  <table class="manifest hidden" id="manifestTable">
+    <thead>
+      <tr>
+        <th class="col-no">No.</th>
+        <th class="col-title">Title</th>
+        <th class="col-qr">QR</th>
+        <th class="col-actions">Actions</th>
+        <th class="col-drag"><span class="sr-only">Reorder</span></th>
+      </tr>
+    </thead>
+    <tbody id="manifestBody"></tbody>
+  </table>
+  <p id="emptyState" class="empty-state">No links yet — paste one above to start your manifest.</p>
+</div>
+
+<div id="qrOverlay" class="qr-overlay hidden">
+  <div class="qr-tag">
+    <img id="qrImage" alt="QR code for this link">
+    <p id="qrLabel" class="qr-label"></p>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+  // ------------------------------------------------------------------
+  // 1) FIREBASE CONFIG — replace with your own project's config, found
+  //    in Firebase Console > Project settings > General > Your apps.
+  // ------------------------------------------------------------------
+  const firebaseConfig = {
+    apiKey: "AIzaSyBLWbg-g7VZMvDx4x-fyQGYcbVql5bCLQg",
+    databaseURL: "https://shopee-live-36e26-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "shopee-live-36e26",
+    appId: "1:281915500639:web:0499cf23d2643967e493ea"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const linksRef = db.ref('links');
+
+  // Your own Cloudflare Worker proxy — reads another site's HTML from the
+  // browser so og:title can be parsed. GitHub Pages is static, so this is
+  // the only way to do that without a server. Since this is your own
+  // Worker (not a shared public proxy), there's no need for a fallback.
+  const CORS_PROXY = (u) => 'https://link-title-proxy.benahouse.workers.dev/?url=' + encodeURIComponent(u);
+
+  const urlInput = document.getElementById('urlInput');
+  const addBtn = document.getElementById('addBtn');
+  const statusMsg = document.getElementById('statusMsg');
+  const manifestTable = document.getElementById('manifestTable');
+  const manifestBody = document.getElementById('manifestBody');
+  const emptyState = document.getElementById('emptyState');
+  const qrOverlay = document.getElementById('qrOverlay');
+  const qrImage = document.getElementById('qrImage');
+  const qrLabel = document.getElementById('qrLabel');
+
+  function setStatus(msg, isError = false) {
+    statusMsg.textContent = msg;
+    statusMsg.classList.toggle('error', isError);
+    clearTimeout(setStatus._t);
+    if (msg) {
+      setStatus._t = setTimeout(() => {
+        statusMsg.textContent = '';
+        statusMsg.classList.remove('error');
+      }, 5000);
+    }
+  }
+
+  async function fetchOgMeta(url) {
+    const res = await fetch(CORS_PROXY(url));
+    if (!res.ok) throw new Error('Proxy returned ' + res.status);
+    const html = await res.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const meta = (sel) => {
+      const el = doc.querySelector(sel);
+      const content = el && el.getAttribute('content');
+      return content ? content.trim() : '';
+    };
+
+    const titleTag = doc.querySelector('title');
+    const title = meta('meta[property="og:title"]') ||
+      (titleTag ? titleTag.textContent.trim() : '');
+
+    const rawImage = meta('meta[property="og:image"]');
+    let image = '';
+    if (rawImage) {
+      try { image = new URL(rawImage, url).href; } catch { image = ''; }
+    }
+
+    if (!title && !image) throw new Error('No title or image found on page');
+    return { title, image };
+  }
+
+  async function handleAdd() {
+    const url = urlInput.value.trim();
+    if (!url) return;
+    try { new URL(url); } catch { setStatus("That doesn't look like a valid URL.", true); return; }
+
+    addBtn.disabled = true;
+    setStatus('Fetching title…');
+
+    let title = url, image = '';
+    try {
+      const meta = await fetchOgMeta(url);
+      if (meta.title) title = meta.title;
+      image = meta.image;
+    } catch (err) {
+      console.warn('Metadata fetch failed:', err);
+      setStatus('Could not fetch the title automatically — saved with the URL as title. Use ✎ to rename.', true);
+    }
+
+    try {
+      const snap = await linksRef.once('value');
+      let maxOrder = -1;
+      snap.forEach(child => {
+        const v = child.val();
+        if (typeof v.order === 'number' && v.order > maxOrder) maxOrder = v.order;
+      });
+      const record = {
+        url,
+        title,
+        order: maxOrder + 1,
+        createdAt: firebase.database.ServerValue.TIMESTAMP
+      };
+      if (image) record.image = image;
+      await linksRef.push(record);
+      urlInput.value = '';
+      if (!statusMsg.classList.contains('error')) setStatus('Added to manifest.');
+    } catch (err) {
+      console.error(err);
+      setStatus('Could not save to the database. Check your Firebase config and rules.', true);
+    } finally {
+      addBtn.disabled = false;
+    }
+  }
+
+  function emptyThumb() {
+    const div = document.createElement('div');
+    div.className = 'thumb empty';
+    div.textContent = '📦';
+    return div;
+  }
+
+  function mkThumb(item) {
+    if (!item.image) return emptyThumb();
+    const img = document.createElement('img');
+    img.className = 'thumb';
+    img.src = item.image;
+    img.alt = '';
+    img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';   // some CDNs refuse hot-linked requests
+    img.addEventListener('error', () => img.replaceWith(emptyThumb()));
+    return img;
+  }
+
+  const ICONS = {
+    grip: '<circle cx="9" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/>' +
+          '<circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="6" r="1.5"/>' +
+          '<circle cx="15" cy="12" r="1.5"/><circle cx="15" cy="18" r="1.5"/>',
+    pencil: '<path d="M4.5 19.5l.9-3.9L16.1 4.9a2.2 2.2 0 0 1 3.1 3.1L8.4 18.6l-3.9.9z"/>' +
+            '<path d="M14.8 6.2l3 3"/>',
+    trash: '<path d="M4.5 6.5h15"/><path d="M9.5 6.5V4.8h5v1.7"/>' +
+           '<path d="M6.6 6.5l.9 12a1.6 1.6 0 0 0 1.6 1.5h5.8a1.6 1.6 0 0 0 1.6-1.5l.9-12"/>' +
+           '<path d="M10.3 10.3v6M13.7 10.3v6"/>'
+  };
+
+  function icon(name) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    svg.innerHTML = ICONS[name];
+    return svg;
+  }
+
+  function mkIconBtn(iconName, title, onClick) {
+    const b = document.createElement('button');
+    b.appendChild(icon(iconName));
+    b.title = title;
+    b.setAttribute('aria-label', title);
+    b.className = 'icon-btn';
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  // --- Drag-to-reorder -------------------------------------------------
+  // Pointer events (not HTML5 drag-and-drop) so the handle works with touch.
+  let drag = null;             // active drag, or null
+  let pendingSnapshot = null;  // database update that arrived mid-drag
+  let pendingFocusKey = null;  // handle to re-focus after a keyboard move
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  // FLIP: note where the rows are, let `mutate` reshuffle them, then play the
+  // rows back from their old positions so the swap reads as a slide.
+  function animateShift(mutate) {
+    if (reduceMotion.matches) { mutate(); return; }
+
+    // offsetTop, not getBoundingClientRect: it reports the layout position and
+    // so ignores the transform a still-running shift may have left behind.
+    const before = new Map();
+    for (const row of manifestBody.children) before.set(row, row.offsetTop);
+
+    mutate();
+
+    for (const row of manifestBody.children) {
+      if (row === (drag && drag.tr)) continue;   // the placeholder is invisible anyway
+      const was = before.get(row);
+      if (was === undefined) continue;
+      const dy = was - row.offsetTop;
+      if (!dy) continue;
+      row.style.transition = 'none';
+      row.style.transform = 'translateY(' + dy + 'px)';
+      void row.offsetHeight;                     // commit that as the start frame
+      row.style.transition = 'transform .16s ease-out';
+      row.style.transform = '';
+    }
+  }
+
+  function rowAtY(y) {
+    // Y only — a finger drifting sideways shouldn't drop the target row.
+    for (const row of manifestBody.children) {
+      const r = row.getBoundingClientRect();
+      if (y >= r.top && y <= r.bottom) return row;
+    }
+    return null;
+  }
+
+  function renumber() {
+    const rows = Array.from(manifestBody.children);
+    rows.forEach((row, i) => {
+      row.querySelector('.no-badge').textContent = String(i + 1).padStart(2, '0');
+    });
+    if (drag) {
+      // The ghost is a snapshot of the row — keep its number honest too.
+      const at = rows.indexOf(drag.tr);
+      if (at >= 0) {
+        drag.ghost.querySelector('.no-badge').textContent = String(at + 1).padStart(2, '0');
+      }
+    }
+  }
+
+  // A floating copy of the row, parked at its starting position; onDragMove
+  // translates it so it tracks the pointer one-to-one.
+  function makeGhost(tr, rect) {
+    const ghost = document.createElement('table');
+    ghost.className = 'manifest drag-ghost';
+    ghost.style.width = rect.width + 'px';
+    ghost.style.left = rect.left + 'px';
+    ghost.style.top = rect.top + 'px';
+
+    const row = tr.cloneNode(true);
+    if (getComputedStyle(tr).display !== 'block') {
+      // Table layout: the clone has no table of its own to size its columns,
+      // so pin each cell to the width it has right now.
+      Array.from(tr.children).forEach((td, i) => {
+        row.children[i].style.width = td.getBoundingClientRect().width + 'px';
+      });
+    }
+    const tbody = document.createElement('tbody');
+    tbody.appendChild(row);
+    ghost.appendChild(tbody);
+    document.body.appendChild(ghost);
+    return ghost;
+  }
+
+  function startDrag(e, tr, handle) {
+    if (drag || e.button > 0) return;
+    e.preventDefault();
+    const rect = tr.getBoundingClientRect();
+    drag = {
+      tr, handle,
+      pointerId: e.pointerId,
+      startY: e.clientY,
+      ghost: makeGhost(tr, rect)
+    };
+    try { handle.setPointerCapture(e.pointerId); } catch {}
+    tr.classList.add('placeholder');
+    document.body.classList.add('dragging');
+  }
+
+  function onDragMove(e) {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    e.preventDefault();
+
+    drag.ghost.style.transform = 'translateY(' + (e.clientY - drag.startY) + 'px)';
+
+    // Nudge the page when the pointer nears an edge, for lists taller than
+    // the screen.
+    const margin = 70;
+    if (e.clientY < margin) window.scrollBy(0, -Math.ceil((margin - e.clientY) / 3));
+    else if (e.clientY > window.innerHeight - margin) {
+      window.scrollBy(0, Math.ceil((e.clientY - (window.innerHeight - margin)) / 3));
+    }
+
+    const over = rowAtY(e.clientY);
+    if (!over || over === drag.tr) return;
+    const r = over.getBoundingClientRect();
+    const below = e.clientY > r.top + r.height / 2;
+    animateShift(() => manifestBody.insertBefore(drag.tr, below ? over.nextSibling : over));
+    renumber();
+  }
+
+  async function endDrag(e) {
+    if (!drag || (e && e.pointerId !== drag.pointerId)) return;
+    const { tr, handle, pointerId, ghost } = drag;
+    drag = null;
+
+    // Let the ghost settle onto the slot it landed in, then hand the row back.
+    const landing = tr.getBoundingClientRect();
+    ghost.style.transition = 'transform .14s ease-out';
+    ghost.style.transform = 'translateY(' + (landing.top - parseFloat(ghost.style.top)) + 'px)';
+    setTimeout(() => {
+      ghost.remove();
+      tr.classList.remove('placeholder');
+    }, 150);
+
+    document.body.classList.remove('dragging');
+    for (const row of manifestBody.children) {
+      row.style.transition = '';
+      row.style.transform = '';
+    }
+    try { handle.releasePointerCapture(pointerId); } catch {}
+
+    setTimeout(() => { swallowClick = false; }, 400);
+
+    await saveOrder();
+    if (pendingSnapshot) {
+      const snap = pendingSnapshot;
+      pendingSnapshot = null;
+      renderLinks(snap);
+    }
+  }
+
+  // Writes the DOM order back as 0..n-1, touching only the rows that moved.
+  async function saveOrder() {
+    const updates = {};
+    Array.from(manifestBody.children).forEach((row, i) => {
+      if (row.dataset.order !== String(i)) {
+        updates[row.dataset.key + '/order'] = i;
+        row.dataset.order = String(i);
+      }
+    });
+    if (!Object.keys(updates).length) return;
+    try {
+      await linksRef.update(updates);
+    } catch (err) {
+      console.error(err);
+      setStatus('Could not save the new order.', true);
+    }
+  }
+
+  // Keyboard equivalent of a drag, so the handle stays usable without a mouse.
+  async function moveByKey(items, idx, dir) {
+    const otherIdx = idx + dir;
+    if (otherIdx < 0 || otherIdx >= items.length) return;
+    const a = items[idx], b = items[otherIdx];
+    pendingFocusKey = a.key;
+    await linksRef.update({
+      [a.key + '/order']: b.order ?? otherIdx,
+      [b.key + '/order']: a.order ?? idx
+    });
+  }
+
+  // --- Long-press to drag (touch) --------------------------------------
+  // The grip stays for a precise grab; on a phone, holding a card anywhere
+  // picks it up, which is the gesture people already expect from a list.
+  const LONG_PRESS_MS = 350;
+  const PRESS_SLOP = 8;        // a finger that travels this far is scrolling
+  let press = null;            // long press being timed
+  let swallowClick = false;    // the tap that ends a long press must not open the link
+
+  function armLongPress(e, tr) {
+    if (drag || press || e.pointerType !== 'touch') return;
+    if (e.target.closest('.icon-btn')) return;   // the buttons handle their own taps
+    const start = { tr, pointerId: e.pointerId, x: e.clientX, y: e.clientY };
+    start.timer = setTimeout(() => {
+      press = null;
+      if (drag) return;
+      swallowClick = true;
+      if (navigator.vibrate) navigator.vibrate(10);
+      startDrag(
+        { pointerId: start.pointerId, clientY: start.y, button: 0, preventDefault() {} },
+        start.tr,
+        start.tr
+      );
+    }, LONG_PRESS_MS);
+    press = start;
+  }
+
+  function cancelLongPress() {
+    if (!press) return;
+    clearTimeout(press.timer);
+    press = null;
+  }
+
+  document.addEventListener('pointermove', (e) => {
+    if (press && e.pointerId === press.pointerId &&
+        Math.abs(e.clientY - press.y) + Math.abs(e.clientX - press.x) > PRESS_SLOP) {
+      cancelLongPress();
+    }
+    onDragMove(e);
+  });
+  document.addEventListener('pointerup', (e) => { cancelLongPress(); endDrag(e); });
+  document.addEventListener('pointercancel', (e) => { cancelLongPress(); endDrag(e); });
+
+  // touch-action can't be switched mid-gesture, so the page is kept still by
+  // cancelling the scroll itself while a drag is running.
+  document.addEventListener('touchmove', (e) => {
+    if (drag) e.preventDefault();
+  }, { passive: false });
+
+  manifestBody.addEventListener('click', (e) => {
+    if (!swallowClick) return;
+    swallowClick = false;
+    e.preventDefault();
+    e.stopPropagation();
+  }, true);
+
+  function editTitle(key, currentTitle) {
+    const next = window.prompt('Rename link', currentTitle);
+    if (next !== null && next.trim() !== '') {
+      linksRef.child(key).update({ title: next.trim() });
+    }
+  }
+
+  function removeLink(key, title) {
+    if (window.confirm('Remove "' + title + '" from the manifest?')) {
+      linksRef.child(key).remove();
+    }
+  }
+
+  function showQR(url, title) {
+    qrImage.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(url);
+    qrLabel.textContent = title || url;
+    qrOverlay.classList.remove('hidden');
+    document.body.classList.add('modal-open');
+  }
+
+  function closeQR() {
+    qrOverlay.classList.add('hidden');
+    document.body.classList.remove('modal-open');
+  }
+
+  // No close button — tap the backdrop (mobile) or press Escape (desktop).
+  qrOverlay.addEventListener('click', (e) => { if (e.target === qrOverlay) closeQR(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeQR(); });
+
+  function renderLinks(snapshot) {
+    // Rebuilding the rows mid-drag would yank the row out from under the
+    // pointer — replay the update once the drag ends.
+    if (drag) { pendingSnapshot = snapshot; return; }
+
+    const items = [];
+    // Firebase cancels forEach if the callback returns true — items.push()
+    // returns the new length (1), so keep the body statement-only.
+    snapshot.forEach(child => { items.push({ key: child.key, ...child.val() }); });
+    items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+    manifestBody.innerHTML = '';
+    emptyState.classList.toggle('hidden', items.length > 0);
+    manifestTable.classList.toggle('hidden', items.length === 0);
+
+    items.forEach((item, idx) => {
+      const tr = document.createElement('tr');
+      tr.dataset.key = item.key;
+      tr.dataset.order = String(idx);
+      tr.addEventListener('pointerdown', (e) => armLongPress(e, tr));
+
+      // The grip acts on the whole row, so it gets its own cell instead of
+      // sitting among the per-link actions.
+      const tdDrag = document.createElement('td');
+      tdDrag.className = 'col-drag';
+      const dragBtn = document.createElement('button');
+      dragBtn.className = 'icon-btn drag-handle';
+      dragBtn.appendChild(icon('grip'));
+      dragBtn.title = 'Drag to reorder (or focus and press ↑ / ↓)';
+      dragBtn.setAttribute('aria-label', 'Reorder this link: drag, or press the up and down arrow keys');
+      dragBtn.addEventListener('pointerdown', (e) => startDrag(e, tr, dragBtn));
+      dragBtn.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+        e.preventDefault();
+        moveByKey(items, idx, e.key === 'ArrowUp' ? -1 : 1);
+      });
+      tdDrag.appendChild(dragBtn);
+
+      const tdNo = document.createElement('td');
+      tdNo.className = 'col-no';
+      const badge = document.createElement('span');
+      badge.className = 'no-badge';
+      badge.textContent = String(idx + 1).padStart(2, '0');
+      tdNo.appendChild(badge);
+      tr.appendChild(tdNo);
+
+      const tdTitle = document.createElement('td');
+      tdTitle.className = 'col-title';
+      const wrap = document.createElement('div');
+      wrap.className = 'title-row';
+      wrap.appendChild(mkThumb(item));
+      const titleText = document.createElement('div');
+      titleText.className = 'title-text';
+      const a = document.createElement('a');
+      a.href = item.url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.title = item.url;
+      a.textContent = item.title || item.url;
+      titleText.appendChild(a);
+      wrap.appendChild(titleText);
+      tdTitle.appendChild(wrap);
+      tr.appendChild(tdTitle);
+
+      const tdQr = document.createElement('td');
+      tdQr.className = 'col-qr';
+      const qrBtn = document.createElement('button');
+      qrBtn.className = 'qr-btn';
+      qrBtn.textContent = 'QR';
+      qrBtn.addEventListener('click', () => showQR(item.url, item.title));
+      tdQr.appendChild(qrBtn);
+      tr.appendChild(tdQr);
+
+      const tdActions = document.createElement('td');
+      tdActions.className = 'col-actions';
+      const editBtn = mkIconBtn('pencil', 'Rename', () => editTitle(item.key, item.title));
+      const delBtn = mkIconBtn('trash', 'Remove', () => removeLink(item.key, item.title));
+      delBtn.classList.add('danger');
+      [editBtn, delBtn].forEach(b => tdActions.appendChild(b));
+      tr.appendChild(tdActions);
+      tr.appendChild(tdDrag);
+
+      manifestBody.appendChild(tr);
+    });
+
+    if (pendingFocusKey) {
+      const handle = manifestBody.querySelector('tr[data-key="' + pendingFocusKey + '"] .drag-handle');
+      pendingFocusKey = null;
+      if (handle) handle.focus();
+    }
+  }
+
+  linksRef.on('value', renderLinks, (err) => {
+    console.error(err);
+    setStatus('Could not connect to the database. Check your Firebase config and rules.', true);
+  });
+
+  addBtn.addEventListener('click', handleAdd);
+  urlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAdd(); });
+</script>
+</body>
+</html>
